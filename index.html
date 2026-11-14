@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#030712">
+  <title>JALVAYU360 | Climate Intelligence</title>
+  <meta name="description" content="JALVAYU360 - Climate intelligence and sustainable agriculture by Team AVIX.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="spaceCanvas"></canvas>
+
+  <header class="navbar">
+    <a href="#home" class="brand">
+      <span class="brand-icon">✦</span>
+      JALVAYU<span>360</span>
+    </a>
+
+    <nav>
+      <a href="#home" data-en="Home" data-hi="होम">Home</a>
+      <a href="#earth" data-en="Earth" data-hi="पृथ्वी">Earth</a>
+      <a href="#weather" data-en="Weather" data-hi="मौसम">Weather</a>
+      <a href="#map" data-en="Map" data-hi="मानचित्र">Map</a>
+      <a href="#climate" data-en="Climate" data-hi="जलवायु">Climate</a>
+      <a href="#assistant" data-en="AI Assistant" data-hi="एआई सहायक">AI Assistant</a>
+    </nav>
+
+    <select id="languageSelect" aria-label="Choose language">
+      <option value="en">English</option>
+      <option value="hi">हिंदी</option>
+    </select>
+  </header>
+
+  <main>
+
+    <!-- HOME -->
+    <section class="hero section" id="home">
+      <div class="hero-content">
+        <div class="eyebrow">
+          <span class="live-dot"></span>
+          CLIMATE INTELLIGENCE PLATFORM
+        </div>
+
+        <h1>
+          Understand<br>
+          Climate.<br>
+          <span>Empower<br>Agriculture.</span>
+        </h1>
+
+        <p data-en="Explore climate intelligence, weather insights and sustainable farming solutions for a better tomorrow."
+           data-hi="बेहतर भविष्य के लिए जलवायु जानकारी, मौसम और टिकाऊ खेती के समाधान जानें।">
+          Explore climate intelligence, weather insights and sustainable farming solutions for a better tomorrow.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#earth" class="btn primary">Explore Earth ↗</a>
+          <a href="#assistant" class="btn secondary">Ask JalVayu AI</a>
+        </div>
+
+        <div class="stats">
+          <div><strong>360°</strong><small>Climate View</small></div>
+          <div><strong>24/7</strong><small>Access</small></div>
+          <div><strong>02</strong><small>Languages</small></div>
+        </div>
+      </div>
+
+      <div class="hero-side">
+        <div class="orbital">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="planet-mini">🌍</div>
+          <div class="float-tag tag-top">◉ Rainfall Insights</div>
+          <div class="float-tag tag-bottom">✳ Sustainable Farming</div>
+        </div>
+        <div class="orbit-caption">EARTH SYSTEM / LIVE GLOBE</div>
+      </div>
+    </section>
+
+    <!-- 3D EARTH -->
+    <section class="section content-section" id="earth">
+      <div class="section-heading">
+        <div class="eyebrow">01 / PLANETARY VIEW</div>
+        <h2>Explore Our <span>Earth.</span></h2>
+        <p>Discover our planet through an interactive 3D globe.</p>
+      </div>
+
+      <div class="earth-panel glass">
+        <div class="panel-top">
+          <span>EARTH / 3D SATELLITE VIEW</span>
+          <span class="live-status"><i></i> INTERACTIVE</span>
+        </div>
+
+        <div id="globeViz">
+          <div class="loading-message">Loading Planet Earth...</div>
+        </div>
+
+        <div class="earth-controls">
+          <button id="zoomIn" class="control-btn">＋</button>
+          <button id="zoomOut" class="control-btn">－</button>
+          <button id="resetGlobe" class="control-btn">Reset View</button>
+        </div>
+        <p class="hint">Drag to rotate • Scroll to zoom</p>
+      </div>
+    </section>
+
+    <!-- WEATHER -->
+    <section class="section content-section" id="weather">
+      <div class="section-heading">
+        <div class="eyebrow">02 / LIVE WEATHER</div>
+        <h2>Weather <span>Intelligence.</span></h2>
+        <p>Check current weather and rainfall forecast for a location.</p>
+      </div>
+
+      <div class="glass weather-panel">
+        <form id="weatherForm" class="search-form">
+          <input id="cityInput" type="text" placeholder="Enter city (e.g. Mumbai)" required>
+          <button class="btn primary" type="submit">Search</button>
+          <button class="btn secondary" id="locateBtn" type="button">Use My Location</button>
+        </form>
+
+        <div id="weatherResult" class="weather-result">
+          <div class="weather-empty">
+            <span>☁️</span>
+            <p>Search for a city to see weather information.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="section content-section" id="map">
+      <div class="section-heading">
+        <div class="eyebrow">03 / GEOGRAPHICAL INTELLIGENCE</div>
+        <h2>Explore The <span>World Map.</span></h2>
+        <p>Interactive global satellite imagery and geographical locations.</p>
+      </div>
+
+      <div class="glass map-panel">
+        <div class="panel-top">
+          <span>GLOBAL SATELLITE MAP</span>
+          <span class="live-status"><i></i> MAP ONLINE</span>
+        </div>
+        <div id="worldMap"></div>
+        <div class="map-footer">
+          <span>Satellite imagery by Esri</span>
+          <button id="indiaBtn" class="btn secondary">Go to India</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLIMATE -->
+    <section class="section content-section" id="climate">
+      <div class="section-heading">
+        <div class="eyebrow">04 / CLIMATE SOLUTIONS</div>
+        <h2>Understand. <span>Protect. Sustain.</span></h2>
+        <p>Tools and information for a climate-resilient future.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card glass">
+          <div class="feature-icon">🌧️</div>
+          <h3>Rainfall Insights</h3>
+          <p>Understand precipitation patterns and monitor forecast rainfall to plan agricultural activities.</p>
+          <a href="#weather">Explore Weather ↗</a>
+        </article>
+
+        <article class="feature-card glass">
+          <div class="feature-icon">☀️</div>
+          <h3>Drought Awareness</h3>
+          <p>Learn about drought conditions, water scarcity and practical conservation measures.</p>
+          <a href="#assistant">Get Guidance ↗</a>
+        </article>
+
+        <article class="feature-card glass">
+          <div class="feature-icon">🌱</div>
+          <h3>Crop Advisory</h3>
+          <p>Get general crop planning and sustainable farming guidance with climate-aware suggestions.</p>
+          <a href="#assistant">Ask AI ↗</a>
+        </article>
+
+        <article class="feature-card glass">
+          <div class="feature-icon">💧</div>
+          <h3>Water Conservation</h3>
+          <p>Discover rainwater harvesting, efficient irrigation and sustainable water management.</p>
+          <a href="#assistant">Learn More ↗</a>
+        </article>
+      </div>
+    </section>
+
+    <!-- AI CHATBOT -->
+    <section class="section content-section" id="assistant">
+      <div class="section-heading">
+        <div class="eyebrow">05 / AI FARMER SUPPORT</div>
+        <h2>Ask JalVayu <span>AI.</span></h2>
+        <p>Your Gemini-powered climate and agriculture assistant.</p>
+      </div>
+
+      <div class="glass chatbot">
+        <div class="chat-header">
+          <div class="ai-avatar">✦</div>
+          <div>
+            <strong>JalVayu AI</strong>
+            <small><i class="live-dot"></i> Gemini AI Assistant</small>
+          </div>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+          <div class="message ai-message">
+            Namaste! 🌱 I am JalVayu AI. Ask me about rainfall, climate change, farming or water conservation.
+          </div>
+        </div>
+
+        <div class="suggestions">
+          <button class="suggestion">How can farmers save water?</button>
+          <button class="suggestion">Explain climate change</button>
+          <button class="suggestion">बारिश के बारे में बताओ</button>
+        </div>
+
+        <form id="chatForm" class="chat-input">
+          <input id="chatInput" type="text" placeholder="Ask your climate question..." autocomplete="off" required>
+          <button type="submit" class="btn primary">Send ↗</button>
+        </form>
+        <div id="chatStatus" class="chat-status"></div>
+      </div>
+    </section>
+
+    <!-- ABOUT TEAM -->
+    <section class="section team-section" id="team">
+      <div class="team-content">
+        <div class="eyebrow">THE PEOPLE BEHIND THE VISION</div>
+        <h2>One Planet.<br><span>One Responsibility.</span></h2>
+        <p>Building a smarter, sustainable and climate-aware tomorrow through innovation and technology.</p>
+        <div class="team-name">TEAM <span>AVIX</span></div>
+      </div>
+    </section>
+
+    <!-- CINEMATIC END PAGE -->
+    <section class="final-page" id="finalPage">
+      <div class="final-stars"></div>
+      <div class="final-content">
+        <div class="final-ring">
+          <div class="avix-logo">A<span>V</span>IX</div>
+        </div>
+        <div class="final-line"></div>
+        <p>AN INNOVATION BY</p>
+        <h2>TEAM <span>AVIX</span></h2>
+        <small>INNOVATING TODAY. SUSTAINING TOMORROW.</small>
+        <a href="#home" class="btn secondary">Return to Earth ↑</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="brand">✦ JALVAYU<span>360</span></div>
+    <p>Climate intelligence for a sustainable future.</p>
+    <p>© 2026 TEAM AVIX. All rights reserved.</p>
+  </footer>
+
+  <script src="https://unpkg.com/three-globe"></script>
+  <script src="https://unpkg.com/globe.gl"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
