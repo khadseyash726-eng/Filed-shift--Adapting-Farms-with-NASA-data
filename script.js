@@ -1,597 +1,510 @@
-/* ==========================================
-   JALVAYU360 | TEAM AVIX
-   Main frontend functionality
-========================================== */
 
-/* ---------- SPACE & METEOR ANIMATION ---------- */
+let currentLocation = null;
+let rainfallChart = null;
+let map = null;
+let mapMarker = null;
+let globe = null;
 
-const canvas = document.getElementById("spaceCanvas");
-const ctx = canvas.getContext("2d");
+const $ = (id) => document.getElementById(id);
 
-let stars = [];
-let meteors = [];
-
-function resizeSpace() {
-  canvas.width = window.innerWidth * devicePixelRatio;
-  canvas.height = window.innerHeight * devicePixelRatio;
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-
-  stars = Array.from({ length: 170 }, () => ({
-    x: Math.random() * window.innerWidth,
-    y: Math.random() * window.innerHeight,
-    radius: Math.random() * 1.4,
-    alpha: Math.random(),
-    speed: Math.random() * .3 + .05
-  }));
+function setStatus(message) {
+  $("locationStatus").textContent = message;
 }
 
-window.addEventListener("resize", resizeSpace);
-resizeSpace();
-
-function createMeteor() {
-  if (meteors.length < 3) {
-    meteors.push({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight * .5,
-      length: Math.random() * 110 + 60,
-      speed: Math.random() * 9 + 7,
-      opacity: 1
-    });
-  }
+function dateDaysAgo(days) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
 }
 
-function animateSpace() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  ctx.clearRect(0, 0, w, h);
-
-  stars.forEach(star => {
-    star.alpha += (Math.random() - .5) * .03;
-    star.alpha = Math.max(.2, Math.min(1, star.alpha));
-    star.y += star.speed;
-
-    if (star.y > h) {
-      star.y = 0;
-      star.x = Math.random() * w;
-    }
-
-    ctx.beginPath();
-    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(180,225,255,${star.alpha})`;
-    ctx.fill();
-  });
-
-  meteors.forEach((meteor, index) => {
-    meteor.x -= meteor.speed;
-    meteor.y += meteor.speed * .55;
-    meteor.opacity -= .006;
-
-    const gradient = ctx.createLinearGradient(
-      meteor.x, meteor.y,
-      meteor.x + meteor.length, meteor.y - meteor.length * .55
-    );
-
-    gradient.addColorStop(0, "rgba(41,230,255,0)");
-    gradient.addColorStop(1, `rgba(255,255,255,${meteor.opacity})`);
-
-    ctx.beginPath();
-    ctx.moveTo(meteor.x, meteor.y);
-    ctx.lineTo(
-      meteor.x + meteor.length,
-      meteor.y - meteor.length * .55
-    );
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    if (meteor.opacity <= 0 || meteor.x < -200) {
-      meteors.splice(index, 1);
-    }
-  });
-
-  requestAnimationFrame(animateSpace);
+function weatherIcon(code) {
+  if (code === 0) return "☀️";
+  if ([1, 2].includes(code)) return "🌤️";
+  if (code === 3) return "☁️";
+  if ([45, 48].includes(code)) return "🌫️";
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "🌧️";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
+  if ([95, 96, 99].includes(code)) return "⛈️";
+  return "🌡️";
 }
 
-animateSpace();
+async function searchLocation() {
+  const query = $("locationInput").value.trim();
 
-// Random meteor every 4 to 10 seconds
-function scheduleMeteor() {
-  createMeteor();
-  setTimeout(scheduleMeteor, 4000 + Math.random() * 6000);
-}
-
-scheduleMeteor();
-
-
-/* ---------- 3D EARTH ---------- */
-
-let globeInstance = null;
-
-function initializeGlobe() {
-  const container = document.getElementById("globeViz");
-
-  if (!container || typeof Globe !== "function") {
-    container.innerHTML =
-      '<div class="loading-message">Earth library unavailable. Check your internet connection and reload.</div>';
+  if (!query) {
+    setStatus("Please enter a village, town or city name.");
     return;
   }
 
-  try {
-    globeInstance = Globe()(container)
-      .globeImageUrl(
-        "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-      )
-      .bumpImageUrl(
-        "https://unpkg.com/three-globe/example/img/earth-topology.png"
-      )
-      .backgroundImageUrl(
-        "https://unpkg.com/three-globe/example/img/night-sky.png"
-      )
-      .showAtmosphere(true)
-      .atmosphereColor("#38bfff")
-      .atmosphereAltitude(0.18)
-      .width(container.clientWidth)
-      .height(container.clientHeight);
-
-    globeInstance.pointOfView({
-      lat: 20,
-      lng: 78,
-      altitude: 2.2
-    });
-
-    const controls = globeInstance.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.45;
-    controls.enableZoom = true;
-    controls.minDistance = 110;
-    controls.maxDistance = 500;
-
-    document.querySelector(".loading-message")?.remove();
-
-    const resizeGlobe = () => {
-      if (globeInstance) {
-        globeInstance
-          .width(container.clientWidth)
-          .height(container.clientHeight);
-      }
-    };
-
-    window.addEventListener("resize", resizeGlobe);
-
-  } catch (error) {
-    console.error("Earth error:", error);
-    container.innerHTML =
-      '<div class="loading-message">Could not load Earth. Please refresh the page.</div>';
-  }
-}
-
-document.getElementById("zoomIn").addEventListener("click", () => {
-  if (!globeInstance) return;
-
-  const view = globeInstance.pointOfView();
-  globeInstance.pointOfView(
-    { ...view, altitude: Math.max(.6, view.altitude * .75) },
-    500
-  );
-});
-
-document.getElementById("zoomOut").addEventListener("click", () => {
-  if (!globeInstance) return;
-
-  const view = globeInstance.pointOfView();
-  globeInstance.pointOfView(
-    { ...view, altitude: Math.min(8, view.altitude * 1.3) },
-    500
-  );
-});
-
-document.getElementById("resetGlobe").addEventListener("click", () => {
-  if (!globeInstance) return;
-
-  globeInstance.pointOfView({
-    lat: 20,
-    lng: 78,
-    altitude: 2.2
-  }, 1000);
-});
-
-
-/* ---------- REAL SATELLITE MAP ---------- */
-
-let worldMap = null;
-
-function initializeMap() {
-  const mapElement = document.getElementById("worldMap");
-
-  if (typeof L === "undefined") {
-    mapElement.innerHTML =
-      '<p style="padding:30px;color:white">Map library unavailable. Check internet connection.</p>';
-    return;
-  }
-
-  worldMap = L.map("worldMap", {
-    center: [22.5, 78.9],
-    zoom: 4,
-    zoomControl: true
-  });
-
-  // Esri World Imagery satellite basemap.
-  // This avoids using the OSM standard tile server.
-  L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    {
-      attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a> — Sources: Esri, Maxar, Earthstar Geographics',
-      maxZoom: 19
-    }
-  ).addTo(worldMap);
-
-  L.marker([28.6139, 77.2090])
-    .addTo(worldMap)
-    .bindPopup("<b>New Delhi</b><br>India");
-
-  L.marker([19.0760, 72.8777])
-    .addTo(worldMap)
-    .bindPopup("<b>Mumbai</b><br>India");
-
-  L.marker([12.9716, 77.5946])
-    .addTo(worldMap)
-    .bindPopup("<b>Bengaluru</b><br>India");
-
-  setTimeout(() => worldMap.invalidateSize(), 300);
-}
-
-document.getElementById("indiaBtn").addEventListener("click", () => {
-  if (worldMap) {
-    worldMap.flyTo([22.5, 78.9], 5, { duration: 1.5 });
-  }
-});
-
-
-/* ---------- LIVE WEATHER USING OPEN-METEO ---------- */
-
-const weatherForm = document.getElementById("weatherForm");
-const cityInput = document.getElementById("cityInput");
-const weatherResult = document.getElementById("weatherResult");
-
-function weatherDescription(code) {
-  const descriptions = {
-    0: "Clear sky",
-    1: "Mainly clear",
-    2: "Partly cloudy",
-    3: "Overcast",
-    45: "Fog",
-    48: "Depositing rime fog",
-    51: "Light drizzle",
-    53: "Moderate drizzle",
-    55: "Dense drizzle",
-    61: "Slight rain",
-    63: "Moderate rain",
-    65: "Heavy rain",
-    71: "Slight snowfall",
-    73: "Moderate snowfall",
-    75: "Heavy snowfall",
-    80: "Rain showers",
-    81: "Moderate rain showers",
-    82: "Heavy rain showers",
-    95: "Thunderstorm"
-  };
-
-  return descriptions[code] || "Weather information";
-}
-
-async function loadWeather(lat, lon, city) {
-  weatherResult.innerHTML =
-    '<div class="weather-empty">Loading live weather information...</div>';
+  setStatus("Searching for location...");
 
   try {
-    const url =
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      "&current=temperature_2m,relative_humidity_2m,apparent_temperature," +
-      "precipitation,rain,weather_code,wind_speed_10m" +
-      "&daily=precipitation_sum,temperature_2m_max,temperature_2m_min" +
-      "&timezone=auto&forecast_days=3";
-
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`;
     const response = await fetch(url);
 
-    if (!response.ok) throw new Error("Weather service error");
+    if (!response.ok) throw new Error("Location search failed.");
 
-    const data = await response.json();
-    const current = data.current;
-    const daily = data.daily;
-
-    weatherResult.innerHTML = `
-      <div class="weather-card">
-        <div class="weather-main">
-          <h3>${escapeHTML(city)}</h3>
-          <div class="temperature">${Math.round(current.temperature_2m)}°C</div>
-          <strong>${weatherDescription(current.weather_code)}</strong>
-          <small style="color:#91a8bc">
-            Feels like ${current.apparent_temperature}°C
-          </small>
-          <small style="color:#91a8bc">
-            Updated: ${new Date(current.time).toLocaleString()}
-          </small>
-        </div>
-
-        <div class="weather-grid">
-          <div class="weather-item">
-            <small>Humidity</small>
-            <strong>${current.relative_humidity_2m}%</strong>
-          </div>
-          <div class="weather-item">
-            <small>Wind speed</small>
-            <strong>${current.wind_speed_10m} km/h</strong>
-          </div>
-          <div class="weather-item">
-            <small>Current precipitation</small>
-            <strong>${current.precipitation} mm</strong>
-          </div>
-          <div class="weather-item">
-            <small>Today's rainfall forecast</small>
-            <strong>${daily.precipitation_sum[0]} mm</strong>
-          </div>
-          <div class="weather-item">
-            <small>Maximum temperature</small>
-            <strong>${daily.temperature_2m_max[0]}°C</strong>
-          </div>
-          <div class="weather-item">
-            <small>Minimum temperature</small>
-            <strong>${daily.temperature_2m_min[0]}°C</strong>
-          </div>
-        </div>
-      </div>
-    `;
-
-  } catch (error) {
-    console.error(error);
-    weatherResult.innerHTML =
-      '<div class="weather-empty">Weather information could not be loaded. Please try again.</div>';
-  }
-}
-
-async function searchCity(city) {
-  if (!city.trim()) return;
-
-  weatherResult.innerHTML =
-    '<div class="weather-empty">Finding location...</div>';
-
-  try {
-    const url =
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
-
-    const response = await fetch(url);
     const data = await response.json();
 
     if (!data.results || data.results.length === 0) {
-      throw new Error("City not found");
+      setStatus("Location not found. Try another spelling.");
+      return;
     }
 
-    const location = data.results[0];
-    const fullName = [
-      location.name,
-      location.admin1,
-      location.country
-    ].filter(Boolean).join(", ");
+    const place = data.results.find(p => p.country_code === "IN") || data.results[0];
 
-    await loadWeather(location.latitude, location.longitude, fullName);
-
+    await selectLocation({
+      name: place.name,
+      country: place.country || "",
+      admin: place.admin1 || "",
+      latitude: place.latitude,
+      longitude: place.longitude
+    });
   } catch (error) {
-    weatherResult.innerHTML =
-      '<div class="weather-empty">Location not found. Please check the city name.</div>';
+    setStatus("Could not search location. Check your internet connection.");
+    console.error(error);
   }
 }
 
-weatherForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  searchCity(cityInput.value);
-});
-
-document.getElementById("locateBtn").addEventListener("click", () => {
+function useMyLocation() {
   if (!navigator.geolocation) {
-    alert("Your browser does not support location.");
+    setStatus("Your browser does not support location access.");
     return;
   }
 
-  weatherResult.innerHTML =
-    '<div class="weather-empty">Requesting your location permission...</div>';
+  setStatus("Requesting your location...");
 
   navigator.geolocation.getCurrentPosition(
-    position => {
-      loadWeather(
-        position.coords.latitude,
-        position.coords.longitude,
-        "Your Current Location"
-      );
+    async position => {
+      await selectLocation({
+        name: "Your selected location",
+        country: "",
+        admin: "",
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      });
     },
-    () => {
-      weatherResult.innerHTML =
-        '<div class="weather-empty">Location permission denied. Search your city instead.</div>';
-    },
-    { timeout: 10000 }
+    () => setStatus("Location permission denied. You can search by city name."),
+    { enableHighAccuracy: true, timeout: 12000 }
   );
-});
-
-
-/* ---------- GEMINI AI CHATBOT ---------- */
-
-const chatForm = document.getElementById("chatForm");
-const chatInput = document.getElementById("chatInput");
-const chatMessages = document.getElementById("chatMessages");
-const chatStatus = document.getElementById("chatStatus");
-
-let chatHistory = [];
-let currentLanguage = "English";
-
-function escapeHTML(text) {
-  return String(text).replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  })[char]);
 }
 
-function addMessage(text, sender) {
-  const message = document.createElement("div");
-  message.className =
-    `message ${sender === "user" ? "user-message" : "ai-message"}`;
+async function selectLocation(place) {
+  currentLocation = place;
 
-  message.textContent = text;
-  chatMessages.appendChild(message);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  const fullName = [place.name, place.admin, place.country].filter(Boolean).join(", ");
+
+  $("selectedLocation").textContent = fullName;
+  $("coordinatesText").textContent =
+    `Latitude: ${place.latitude.toFixed(3)} | Longitude: ${place.longitude.toFixed(3)}`;
+  $("rainLocation").textContent = fullName;
+  $("globeLocationName").textContent = fullName;
+  $("globeWeatherPlace").textContent = "Loading weather information...";
+  $("globeWeatherDetails").textContent = "";
+
+  if (map) {
+    map.setView([place.latitude, place.longitude], 8);
+    if (mapMarker) map.removeLayer(mapMarker);
+    mapMarker = L.marker([place.latitude, place.longitude]).addTo(map)
+      .bindPopup(fullName).openPopup();
+  }
+
+  if (globe) {
+    globe.pointsData([{
+      lat: place.latitude,
+      lng: place.longitude,
+      size: 0.6,
+      color: "#64e6a1"
+    }]);
+    globe.pointOfView({ lat: place.latitude, lng: place.longitude, altitude: 1.8 }, 1000);
+  }
+
+  setStatus("Location selected. Loading weather and NASA data...");
+
+  await Promise.allSettled([
+    loadWeather(place),
+    loadNASAData(place)
+  ]);
+
+  setStatus("Location data loading completed. Check the sections below.");
 }
 
-async function sendMessage(message) {
-  if (!message.trim()) return;
+async function loadWeather(place) {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
 
-  addMessage(message, "user");
-  chatInput.value = "";
-  chatInput.disabled = true;
-  chatStatus.textContent = "JalVayu AI is thinking...";
+  url.search = new URLSearchParams({
+    latitude: place.latitude,
+    longitude: place.longitude,
+    current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,weather_code",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum",
+    timezone: "auto",
+    forecast_days: "7"
+  });
+
+  const response = await fetch(url);
+
+  if (!response.ok) throw new Error("Weather API failed.");
+
+  const data = await response.json();
+  const current = data.current;
+
+  $("temperature").textContent = `${current.temperature_2m} °C`;
+  $("feelsLike").textContent = `Feels like ${current.apparent_temperature} °C`;
+  $("humidity").textContent = `${current.relative_humidity_2m}%`;
+  $("precipitation").textContent = `${current.precipitation} mm`;
+  $("windSpeed").textContent = `${current.wind_speed_10m} km/h`;
+
+  $("weatherSource").textContent = "Source: Open-Meteo weather API";
+  $("weatherUpdated").textContent = `Model time: ${current.time || "Not available"}`;
+
+  $("globeWeatherPlace").textContent = "Current weather";
+  $("globeWeatherDetails").textContent =
+    `${current.temperature_2m}°C • ${current.relative_humidity_2m}% humidity • ${current.precipitation} mm precipitation`;
+
+  const forecastHTML = data.daily.time.map((day, index) => `
+    <article class="forecast-card glass">
+      <p>${new Date(day + "T12:00:00").toLocaleDateString("en", { weekday: "short" })}</p>
+      <div class="forecast-icon">${weatherIcon(data.daily.weather_code[index])}</div>
+      <strong>${Math.round(data.daily.temperature_2m_max[index])}°</strong>
+      <p>${Math.round(data.daily.temperature_2m_min[index])}° min</p>
+      <small>🌧️ ${data.daily.precipitation_sum[index]} mm</small>
+    </article>
+  `).join("");
+
+  $("forecastCards").innerHTML = forecastHTML;
+}
+
+async function loadNASAData(place) {
+  $("rainStatus").textContent = "Loading NASA POWER data...";
+  $("nasaDate").textContent = "Fetching daily data from NASA POWER...";
 
   try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message,
-        language: currentLanguage,
-        history: chatHistory
-      })
+    const end = dateDaysAgo(3);
+    const start = dateDaysAgo(367);
+
+    const url = new URL("https://power.larc.nasa.gov/api/temporal/daily/point");
+
+    url.search = new URLSearchParams({
+      parameters: "PRECTOTCORR,T2M,RH2M",
+      community: "AG",
+      longitude: place.longitude,
+      latitude: place.latitude,
+      start,
+      end,
+      format: "JSON"
     });
 
+    const response = await fetch(url);
+
+    if (!response.ok) throw new Error("NASA POWER request failed.");
+
     const data = await response.json();
+    const parameters = data.properties.parameter;
 
-    if (!response.ok) {
-      throw new Error(data.error || "AI request failed");
-    }
+    const rainfall = parameters.PRECTOTCORR || {};
+    const temperature = parameters.T2M || {};
+    const humidity = parameters.RH2M || {};
 
-    addMessage(data.reply, "ai");
+    const validRain = Object.entries(rainfall)
+      .filter(([date, value]) => /^\d{8}$/.test(date) && Number.isFinite(value) && value >= 0)
+      .sort(([a], [b]) => a.localeCompare(b));
 
-    chatHistory.push(
-      { role: "user", text: message },
-      { role: "model", text: data.reply }
-    );
+    if (!validRain.length) throw new Error("No valid NASA rainfall data.");
 
-    chatHistory = chatHistory.slice(-10);
-    chatStatus.textContent = "Connected to Gemini AI";
+    const totalRain = validRain.reduce((sum, [, value]) => sum + value, 0);
 
+    const monthly = {};
+
+    validRain.forEach(([date, value]) => {
+      const month = date.slice(0, 6);
+      monthly[month] = (monthly[month] || 0) + value;
+    });
+
+    const monthEntries = Object.entries(monthly).sort(([a], [b]) => a.localeCompare(b));
+    const labels = monthEntries.map(([month]) => {
+      const year = month.slice(0, 4);
+      const monthName = new Date(Number(year), Number(month.slice(4, 6)) - 1)
+        .toLocaleDateString("en", { month: "short" });
+      return `${monthName} ${year}`;
+    });
+
+    const values = monthEntries.map(([, value]) => Number(value.toFixed(1)));
+
+    const wettestIndex = values.indexOf(Math.max(...values));
+
+    $("annualRainfall").textContent = `${totalRain.toFixed(1)} mm`;
+    $("wettestMonth").textContent = labels[wettestIndex] || "—";
+    $("rainStatus").textContent = `${validRain.length} daily records`;
+    $("nasaRainfall").textContent = `Total rainfall: ${totalRain.toFixed(1)} mm`;
+
+    const validTemp = Object.values(temperature).filter(v => Number.isFinite(v) && v > -90);
+    const validHumidity = Object.values(humidity).filter(v => Number.isFinite(v) && v >= 0);
+
+    $("nasaTemperature").textContent = validTemp.length
+      ? `Average temperature: ${(validTemp.reduce((a,b) => a+b,0) / validTemp.length).toFixed(1)} °C`
+      : "Temperature: unavailable";
+
+    $("nasaHumidity").textContent = validHumidity.length
+      ? `Average relative humidity: ${(validHumidity.reduce((a,b) => a+b,0) / validHumidity.length).toFixed(1)}%`
+      : "Humidity: unavailable";
+
+    $("nasaDate").textContent = `NASA POWER daily data: ${start} to ${end}`;
+
+    drawRainfallChart(labels, values);
   } catch (error) {
     console.error(error);
-    addMessage(
-      "Sorry! AI connection failed. Please check your backend and Gemini API key. " + error.message,
-      "ai"
-    );
-    chatStatus.textContent = "AI connection error";
+    $("rainStatus").textContent = "NASA data unavailable";
+    $("nasaDate").textContent = "Could not load NASA POWER data. Please try again later.";
   }
-
-  chatInput.disabled = false;
-  chatInput.focus();
 }
 
-chatForm.addEventListener("submit", event => {
-  event.preventDefault();
-  sendMessage(chatInput.value);
-});
+function drawRainfallChart(labels, values) {
+  const ctx = $("rainfallChart");
 
-document.querySelectorAll(".suggestion").forEach(button => {
-  button.addEventListener("click", () => {
-    sendMessage(button.textContent);
-  });
-});
+  if (rainfallChart) rainfallChart.destroy();
 
-
-/* ---------- LANGUAGE SWITCHING ---------- */
-
-const translations = {
-  en: {
-    title: "Home",
-    explore: "Explore Earth ↗",
-    assistant: "Ask JalVayu AI",
-    search: "Enter city (e.g. Mumbai)",
-    chat: "Ask your climate question...",
-    send: "Send ↗"
-  },
-  hi: {
-    title: "होम",
-    explore: "पृथ्वी देखें ↗",
-    assistant: "जलवायु AI से पूछें",
-    search: "शहर का नाम लिखें",
-    chat: "अपना जलवायु संबंधी प्रश्न पूछें...",
-    send: "भेजें ↗"
-  }
-};
-
-function setLanguage(language) {
-  currentLanguage = language === "hi" ? "Hindi (Devanagari)" : "English";
-
-  document.documentElement.lang = language;
-
-  document.querySelectorAll("[data-en][data-hi]").forEach(element => {
-    element.textContent = element.dataset[language];
-  });
-
-  const t = translations[language];
-
-  document.querySelector('a[href="#earth"].btn').textContent = t.explore;
-  document.querySelector('a[href="#assistant"].btn').textContent = t.assistant;
-  cityInput.placeholder = t.search;
-  chatInput.placeholder = t.chat;
-  chatForm.querySelector("button").textContent = t.send;
-
-  document.querySelectorAll(".suggestion").forEach((button, index) => {
-    const english = [
-      "How can farmers save water?",
-      "Explain climate change",
-      "Tell me about rainfall"
-    ];
-
-    const hindi = [
-      "किसान पानी कैसे बचा सकते हैं?",
-      "जलवायु परिवर्तन समझाइए",
-      "बारिश के बारे में बताइए"
-    ];
-
-    button.textContent = language === "hi"
-      ? hindi[index]
-      : english[index];
-  });
-}
-
-document.getElementById("languageSelect")
-  .addEventListener("change", event => {
-    setLanguage(event.target.value);
-  });
-
-
-/* ---------- BACKEND STATUS ---------- */
-
-async function checkBackend() {
-  try {
-    const response = await fetch("/api/health");
-    const data = await response.json();
-
-    console.log("JALVAYU360 backend:", data);
-
-    if (data.gemini !== "configured") {
-      chatStatus.textContent =
-        "Backend online. Gemini API key needs configuration.";
+  rainfallChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Rainfall (mm)",
+        data: values,
+        backgroundColor: "rgba(100,230,161,0.65)",
+        borderColor: "#64e6a1",
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#dceaff" } }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#9aabc2" },
+          grid: { color: "rgba(255,255,255,.05)" }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Rainfall (mm)",
+            color: "#9aabc2"
+          },
+          ticks: { color: "#9aabc2" },
+          grid: { color: "rgba(255,255,255,.08)" }
+        }
+      }
     }
-  } catch (error) {
-    chatStatus.textContent = "Backend not connected.";
-    console.error("Backend error:", error);
-  }
+  });
 }
 
+function initializeMap() {
+  map = L.map("earthMap").setView([20.5937, 78.9629], 4);
 
-/* ---------- INITIALIZATION ---------- */
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 18
+  }).addTo(map);
 
-window.addEventListener("load", () => {
-  initializeGlobe();
+  map.on("click", async event => {
+    await selectLocation({
+      name: "Map selected location",
+      country: "",
+      admin: "",
+      latitude: event.latlng.lat,
+      longitude: event.latlng.lng
+    });
+  });
+}
+
+function initializeGlobe() {
+  const container = $("globeViz");
+
+  if (!window.Globe) {
+    container.textContent = "3D globe could not load. Check your internet connection.";
+    return;
+  }
+
+  globe = Globe()(container)
+    .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
+    .backgroundColor("#071323")
+    .showAtmosphere(true)
+    .atmosphereColor("#4ebdff")
+    .atmosphereAltitude(0.18)
+    .pointsData([])
+    .pointAltitude("size")
+    .pointColor("color")
+    .pointRadius(0.4)
+    .onGlobeClick(async point => {
+      if (!point) return;
+      await selectLocation({
+        name: "Globe selected location",
+        country: "",
+        admin: "",
+        latitude: point.lat,
+        longitude: point.lng
+      });
+    });
+
+  globe.width(container.clientWidth);
+  globe.height(container.clientHeight);
+}
+
+const answers = [
+  {
+    keywords: ["rotation", "crop rotation"],
+    answer: "Crop rotation means growing different crops in sequence on the same field. Rotating cereals with legumes can support soil fertility and help break some pest and disease cycles."
+  },
+  {
+    keywords: ["drought", "dry"],
+    answer: "Drought is a period of unusually low water availability. Farmers can explore drought-tolerant crops, soil cover, water conservation and local agricultural advice."
+  },
+  {
+    keywords: ["rain", "rainfall", "precipitation"],
+    answer: "Rainfall affects soil moisture, planting schedules and crop growth. Both too little and too much rain can create challenges for farming."
+  },
+  {
+    keywords: ["soil moisture", "moisture"],
+    answer: "Soil moisture is the water stored in soil. It helps plants absorb nutrients and supports growth. NASA satellite observations can help monitor moisture conditions over large areas."
+  },
+  {
+    keywords: ["nasa", "data"],
+    answer: "NASA POWER provides accessible Earth observation and meteorological data. This prototype uses its daily precipitation, temperature and humidity parameters."
+  },
+  {
+    keywords: ["weather", "temperature"],
+    answer: "The weather dashboard uses Open-Meteo for current weather and a seven-day forecast. Select a location to view its conditions."
+  },
+  {
+    keywords: ["legume", "pulses"],
+    answer: "Legumes such as chickpea and pigeon pea can contribute to soil nitrogen through biological nitrogen fixation. Suitability depends on local soil, season and water availability."
+  }
+];
+
+function getBotAnswer(question) {
+  const text = question.toLowerCase();
+
+  const match = answers.find(item =>
+    item.keywords.some(keyword => text.includes(keyword))
+  );
+
+  return match
+    ? match.answer
+    : "I can help with general questions about crop rotation, drought, rainfall, soil moisture, NASA data and weather. Try asking about one of these topics.";
+}
+
+function addMessage(message, type) {
+  const element = document.createElement("div");
+  element.className = `message ${type}-message`;
+  element.textContent = message;
+  $("chatMessages").appendChild(element);
+  $("chatMessages").scrollTop = $("chatMessages").scrollHeight;
+}
+
+function sendChatMessage(message) {
+  const question = message.trim();
+  if (!question) return;
+
+  addMessage(question, "user");
+  addMessage(getBotAnswer(question), "bot");
+}
+
+function initializeChat() {
+  $("chatForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const input = $("chatInput");
+    sendChatMessage(input.value);
+    input.value = "";
+  });
+
+  document.querySelectorAll(".question-btn").forEach(button => {
+    button.addEventListener("click", () => sendChatMessage(button.textContent));
+  });
+}
+
+function generateAdvisory() {
+  const soil = $("soilType").value;
+  const water = $("waterLevel").value;
+  const priority = $("priority").value;
+  const rain = $("rainCondition").value;
+
+  let suggestions = [];
+  let explanation = "";
+
+  if (water === "low" || rain === "low") {
+    suggestions = ["Explore drought-tolerant crops", "Consider suitable pulses", "Use soil-moisture conservation practices"];
+    explanation = "Low water availability or drought risk makes water conservation especially important.";
+  } else if (water === "high" || rain === "high") {
+    suggestions = ["Check drainage before planting", "Consider locally suitable crops that tolerate wet conditions", "Monitor waterlogging risk"];
+    explanation = "Excess water can affect roots and crop growth. Local drainage conditions matter.";
+  } else {
+    suggestions = ["Explore a cereal-legume rotation", "Consider locally suitable pulses", "Maintain soil cover between crops"];
+    explanation = "A diversified crop sequence can support soil health when it is suitable for the local season and soil.";
+  }
+
+  if (soil === "black") {
+    explanation += " Black soil can retain moisture; drainage and seasonal conditions should be checked.";
+  } else if (soil === "sandy") {
+    explanation += " Sandy soil often drains quickly, so water and organic matter management are important.";
+  } else if (soil === "red") {
+    explanation += " Red soil varies widely; a soil test can help guide nutrient management.";
+  } else if (soil === "alluvial") {
+    explanation += " Alluvial soil can vary in texture and fertility, so local testing is useful.";
+  } else {
+    explanation += " Identify your soil type through a soil test before making a planting decision.";
+  }
+
+  if (priority === "soil") {
+    suggestions.push("Include suitable legumes to support soil fertility");
+  } else if (priority === "water") {
+    suggestions.push("Compare crops by seasonal water requirement");
+  } else if (priority === "income") {
+    suggestions.push("Compare local market demand and production costs");
+  } else {
+    suggestions.push("Diversify crops and monitor seasonal climate risks");
+  }
+
+  $("advisoryResult").innerHTML = `
+    <div class="advisory-icon">🌱</div>
+    <h3>Suggested Farming Actions</h3>
+    <p>${explanation}</p>
+    <ul>${suggestions.map(item => `<li>${item}</li>`).join("")}</ul>
+    <p><strong>Important:</strong> This is an educational prototype, not a validated farm recommendation. Confirm with local agricultural experts.</p>
+  `;
+}
+
+function initializeLanguageSelector() {
+  const translations = {
+    en: ["Home", "Dashboard", "Rainfall", "3D Earth", "AI Assistant", "Crop Advisory"],
+    mr: ["मुख्यपृष्ठ", "डॅशबोर्ड", "पाऊस", "3D पृथ्वी", "AI सहाय्यक", "पीक सल्ला"],
+    hi: ["होम", "डैशबोर्ड", "वर्षा", "3D पृथ्वी", "AI सहायक", "फसल सलाह"]
+  };
+
+  $("languageSelect").addEventListener("change", event => {
+    const language = event.target.value;
+    document.querySelectorAll(".navbar nav a").forEach((link, index) => {
+      link.textContent = translations[language][index];
+    });
+  });
+}
+
+function initializeApp() {
+  $("searchLocation").addEventListener("click", searchLocation);
+  $("locationInput").addEventListener("keydown", event => {
+    if (event.key === "Enter") searchLocation();
+  });
+
+  $("useMyLocation").addEventListener("click", useMyLocation);
+  $("getAdvisory").addEventListener("click", generateAdvisory);
+
   initializeMap();
-  checkBackend();
-});
+  initializeGlobe();
+  initializeChat();
+  initializeLanguageSelector();
+}
+
+window.addEventListener("load", initializeApp);
